@@ -1,5 +1,5 @@
 # ThrottleQuadrant
-A simple 6 axis (3 joysticks x 2 axis) throttle quadrant for Arduino Micro or Leonardo
+A simple 6 axis throttle quadrant for Arduino Micro or Leonardo
 Version 1.0
 
 Jarno Rankinen
@@ -18,8 +18,8 @@ Requirements:
   Arduino IDE
 
   Arduino Joystick library: https://github.com/MHeironimus/ArduinoJoystickLibrary/tree/version-1.0
-    This sketch uses the Joystick3.h -library
-    Download ZIP and place Joystick3 folder to your Documents/Arduino/libraries directory
+    This sketch uses the Joystick.h -library
+    Download ZIP and place Joystick folder to your Documents/Arduino/libraries directory
 
 Wiring:
   For each slider, connect the 
