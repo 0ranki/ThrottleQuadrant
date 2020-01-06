@@ -1,6 +1,6 @@
 /************************************************************************************
  * Throttle Quadrant using Arduino Micro & slide potentiometers
- * version 1.1
+ * version 1.11
  * 
  * https://github.com/jarnorankinen/ThrottleQuadrant
  * 
@@ -14,18 +14,26 @@
  * Shows up as three joysticks, all named "Arduino Micro", use simulators own interface to bind the controls to correct axis.
  * It may be necessary to invert some axis.
  * 
- * Calibration: (for xa-axis in this example)
+ * Calibration: (for throttle_l-axis in this example, you only need to do this once or after hardware modifications)
  * - Set calib = true
  * - Upload to Arduino
  * - Open the serial monitor
- * - Move the slilder corresponding to xa-axis to its min & max positions
- * - Note the min & max values of xa
- * - Input the values to xamin & xamax
+ * - Move the slider corresponding to throttle_l-axis to its min & max positions
+ * - Note the min & max values of throttle_l
+ * - Input the values to throttle_lmin & throttle_lmax
  * - Upload to Arduino
  * - Repeat for each axis
+ * - Afterwards set calib == false & Upload to Arduino
+ * - Remember to calibrate controller in the simulator
  * 
- * v1.1 Switched to Joystick.h (single joystick library) for hassle-free Linux support. Changed behavior to update joystick axis output value
- *      only if raw value changes more than +/-3, to filter input and allow simultaneous keyboard control.
+ * Changelog:
+ * 
+ * v1.0     Initial release
+ * 
+ * v1.1     Switched to Joystick.h (single joystick library) for hassle-free Linux support. Changed behavior to update joystick axis output value
+ *          only if raw value changes more than +/-3, to filter input and allow simultaneous keyboard control.
+ *      
+ * v1.11    Added rule to ignore spike values outside min-max range
  * 
  **********************************************************************************/
 
@@ -34,29 +42,26 @@
 
 
 #include "Joystick.h"
-#define Joystick_includeRxAxis false
-#define Joystick_includeRyAxis false
-#define Joystick_includeRzAxis false
 
 uint16_t throttle_l = 0;       // raw data from the slider
 uint16_t throttle_lmin = 14, throttle_lmax = 236; //min & max values for calibration
-int throttle_l_axis = 0;     // the value to give to the Joystick axis
-int tl_old = 0;
+int throttle_l_axis = -128;     // the value to give to the Joystick axis
+int tl_old = -128;
 
 uint16_t throttle_r = 0;
 uint16_t throttle_rmin = 14, throttle_rmax = 234;
-int throttle_r_axis = 0;
-int tr_old = 0;
+int throttle_r_axis = -128;
+int tr_old = -128;
 
 uint16_t prop_l = 0;
 uint16_t prop_lmin = 14, prop_lmax = 226;
-int prop_l_axis = 0;
-int pl_old = 0;
+int prop_l_axis = 127;
+int pl_old = 127;
 
 uint16_t prop_r = 0;
 uint16_t prop_rmin = 14, prop_rmax = 232;
-int prop_r_axis = 0;
-int pr_old = 0;
+int prop_r_axis = 359;
+int pr_old = 359;
 
 uint16_t mix_l = 0;
 uint16_t mix_lmin = 15, mix_lmax = 231;
@@ -101,24 +106,36 @@ void setup() {
 }
 
 void loop() {
-  throttle_l = analogRead(A0);
-  throttle_l_axis = 256*throttle_l/(throttle_lmax-throttle_lmin+5) - 128 - throttle_lmin;  //convert raw values -> -128 - 128 (roughly, joystick calibration is still recommended via e.g. Windows joystick interface)
   
-  throttle_r = analogRead(A1);
-  throttle_r_axis = 256*throttle_r/(throttle_rmax-throttle_rmin+5) - 128 - throttle_rmin;
+    throttle_l = analogRead(A0);
+    if (calib == false && (throttle_l > throttle_lmax)) throttle_l = throttle_lmax;
+    if (calib == false && (throttle_l < throttle_lmin)) throttle_l = throttle_lmin;
+    throttle_l_axis = 256*throttle_l/(throttle_lmax-throttle_lmin+5) - 128 - throttle_lmin;  //convert raw values -> -128 - 128 (roughly, joystick calibration is still recommended via e.g. Windows joystick interface)
   
-  prop_l = analogRead(A2);
-  prop_l_axis = 256*prop_l/(prop_lmax-prop_lmin+5) - 128 - prop_lmin;
+    throttle_r = analogRead(A1);
+    if (calib == false && (throttle_r > throttle_rmax)) throttle_r = throttle_rmax;
+    if (calib == false && (throttle_r < throttle_rmin)) throttle_r = throttle_rmin;
+    throttle_r_axis = 256*throttle_r/(throttle_rmax-throttle_rmin+5) - 128 - throttle_rmin;
+  
+    prop_l = analogRead(A2);
+    if (calib == false && (prop_l > prop_lmax)) prop_l = prop_lmax;
+    if (calib == false && (prop_l < prop_lmin)) prop_l = prop_lmin;
+    prop_l_axis = 256*prop_l/(prop_lmax-prop_lmin+5) - 128 - prop_lmin;
 
-  prop_r = analogRead(A3);
-  prop_r_axis = prop_r * rotation_multip - (prop_rmin + 5);
-  //prop_r_axis = 256*prop_r/(prop_rmax-prop_rmin+5) - prop_rmin;
+    prop_r = analogRead(A3);
+    if (calib == false && (prop_r > prop_rmax)) prop_r = prop_rmax;
+    if (calib == false && (prop_r < prop_rmin)) prop_r = prop_rmin;
+    prop_r_axis = prop_r * rotation_multip - (prop_rmin + 5);
 
-  mix_l = analogRead(A4);
-  mix_l_axis = mix_l * rotation_multip - (mix_lmin + 5);
-
-  mix_r = analogRead(A5);
-  mix_r_axis = 254*(mix_r - mix_rmin)/(mix_rmax - mix_rmin);
+    mix_l = analogRead(A4);
+    if (calib == false && (mix_l > mix_lmax)) mix_l = mix_lmax;
+    if (calib == false && (mix_l < mix_lmin)) mix_l = mix_lmin;
+    mix_l_axis = mix_l * rotation_multip - (mix_lmin + 5);
+  
+    mix_r = analogRead(A5);
+    if (calib == false && (mix_r > mix_rmax)) mix_r = mix_rmax;
+    if (calib == false && (mix_r < mix_rmin)) mix_r = mix_rmin;
+    mix_r_axis = 254*(mix_r - mix_rmin)/(mix_rmax - mix_rmin);
   
   if(calib==true) {               //Serial monitor for calibration
     Serial.println();
@@ -141,26 +158,26 @@ void loop() {
     Serial.print(" -> ");
     Serial.print("mix_r_axis=");Serial.println(mix_r_axis);
   }
-
-  //Set the axis values using Joystick library
-        Joystick.setXAxis(throttle_l_axis);
-        Joystick.setYAxis(throttle_r_axis);
-        Joystick.setZAxis(prop_l_axis);
-        Joystick.setXAxisRotation(prop_r_axis);
-        Joystick.setYAxisRotation(mix_l_axis);
-        Joystick.setRudder(mix_r_axis);
-  
- 
+    Serial.println(mix_l);
+    //Serial.println(mix_l_axis);
+    
   if (delta(throttle_l_axis, tl_old)>3 || delta(throttle_r_axis, tr_old)>3 || delta(prop_l_axis, pl_old)>3 || delta(prop_r_axis, pr_old)>3 || delta(mix_l_axis, ml_old)>3 || delta(mix_r_axis, mr_old)>3){
+      if (delta(throttle_l_axis, tl_old)<200 || delta(throttle_r_axis, tr_old)<200 || delta(prop_l_axis, pl_old)<200 || delta(prop_r_axis, pr_old)<200 || delta(mix_l_axis, ml_old)<200 || delta(mix_r_axis, mr_old)<200){
         tl_old = throttle_l_axis;
         tr_old = throttle_r_axis;
         pl_old = prop_l_axis;
         pr_old = prop_r_axis;
         ml_old = mix_l_axis;
         mr_old = mix_r_axis;
+        Joystick.setXAxis(throttle_l_axis);
+        Joystick.setYAxis(throttle_r_axis);
+        Joystick.setZAxis(prop_l_axis);
+        Joystick.setXAxisRotation(prop_r_axis);
+        Joystick.setYAxisRotation(mix_l_axis);
+        Joystick.setRudder(mix_r_axis);
         Joystick.sendState();
-    
+      }    
   }
 
-  delay(20);  //this reduces load on the controller
+  delay(20);
 }
